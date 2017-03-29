@@ -4,16 +4,22 @@
 
 cd_func ()
 {
-  local x2 the_new_dir adir index
+  local x2 the_new_dir valid_dir adir index answer
   local -i cnt
 
   the_new_dir=$1
-  if [[ $the_new_dir ==  "--" ]]; then
+  if [[ $the_new_dir == "--" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
     dirs -v | sort -nr
 
+    echo
+
     while :; do
-      read -p "Where are you going? Enter the number:  " answer
+      echo -n "Where to go? Enter the number (empty == 0):  "
+      read -r -e answer
+      READLINE_LINE=""
+
+      [ "$answer" == "" ] && answer=0
 
       if [ "${answer//[0-9]/}" != "" ]; then
         echo "Digit only, please."
@@ -74,8 +80,9 @@ cd_func ()
 
 alias cd=cd_func
 
-#if [[ $BASH_VERSION > "2.05a" ]]; then
-#  # ctrl+w shows the menu
-#  bind -x "\"\C-w\":cd_func -- ;"
-#fi
+# Only do the binding in interactive shell.
+if [[ $BASH_VERSION > "2.05a" ]] && [ ! -z "$PS1" ]; then
+  # alt+q shows the menu
+  bind -x "\"\eq\":cd_func -- ;"
+fi
 
