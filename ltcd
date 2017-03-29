@@ -7,13 +7,31 @@ cd_func ()
   local x2 the_new_dir adir index
   local -i cnt
 
-  if [[ $1 ==  "--" ]]; then
-    dirs -v
-    return 0
+  the_new_dir=$1
+  if [[ $the_new_dir ==  "--" ]]; then
+    #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
+    dirs -v | sort -nr
+
+    while :; do
+      read -p "Where are you going? Enter the number:  " answer
+
+      if [ "${answer//[0-9]/}" != "" ]; then
+        echo "Digit only, please."
+        continue
+      fi
+
+      valid_dir=`dirs +$answer 2>/dev/null`
+      if [ "$valid_dir" == "" ]; then
+        echo "Enter valid number, please."
+	continue
+      fi
+
+      the_new_dir=$valid_dir
+      break
+    done
   fi
 
-  the_new_dir=$1
-  [[ -z $1 ]] && the_new_dir=$HOME
+  [[ -z $the_new_dir ]] && the_new_dir=$HOME
 
   if [[ ${the_new_dir:0:1} == '-' ]]; then
     #
@@ -36,12 +54,12 @@ cd_func ()
   the_new_dir=$(pwd)
 
   #
-  # Trim down everything beyond 11th entry
-  popd -n +11 2>/dev/null 1>/dev/null
+  # Trim down everything beyond 101th entry
+  popd -n +100 2>/dev/null 1>/dev/null
 
   #
   # Remove any other occurence of this dir, skipping the top of the stack
-  for ((cnt=1; cnt <= 10; cnt++)); do
+  for ((cnt=1; cnt <= 99; cnt++)); do
     x2=$(dirs +${cnt} 2>/dev/null)
     [[ $? -ne 0 ]] && return 0
     [[ ${x2:0:1} == '~' ]] && x2="${HOME}${x2:1}"
@@ -56,8 +74,8 @@ cd_func ()
 
 alias cd=cd_func
 
-if [[ $BASH_VERSION > "2.05a" ]]; then
-  # ctrl+w shows the menu
-  bind -x "\"\C-w\":cd_func -- ;"
-fi
+#if [[ $BASH_VERSION > "2.05a" ]]; then
+#  # ctrl+w shows the menu
+#  bind -x "\"\C-w\":cd_func -- ;"
+#fi
 
