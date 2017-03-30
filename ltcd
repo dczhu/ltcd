@@ -1,16 +1,16 @@
-# do ". acd_func.sh"
-# acd_func 1.0.5, 10-nov-2004
-# petar marinov, http:/geocities.com/h2428, this is public domain
-
 cd_func ()
 {
-  local x2 the_new_dir valid_dir adir index answer
-  local -i cnt
+  local x2 the_new_dir valid_dir adir index answer line
+  local -i cnt start exist
 
   the_new_dir=$1
-  if [[ $the_new_dir == "--" ]]; then
+  if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
-    dirs -v | sort -nr
+    if [ "$the_new_dir" == "--" ]; then
+      dirs -v | sort -nr
+    else
+      sort ~/.cd_glob_stats 2>/dev/null | uniq | awk '{printf "%2d  %s\n", NR, $0} END {print " 0  <do nothing>"}' | sort -nr | tee ~/.cd_glob_stats_sort
+    fi
 
     echo
 
@@ -26,13 +26,22 @@ cd_func ()
         continue
       fi
 
-      valid_dir=`dirs +$answer 2>/dev/null`
-      if [ "$valid_dir" == "" ]; then
-        echo "Enter valid number, please."
-	continue
+      if [ "$the_new_dir" == "--" ]; then
+        valid_dir=`dirs +$answer 2>/dev/null`
+        if [ "$valid_dir" == "" ]; then
+          echo "Enter valid number, please."
+          continue
+        fi
+        the_new_dir=$valid_dir
+      else
+        [ "$answer" -eq 0 ] && return 0
+        if [ "$answer" -ge `wc -l ~/.cd_glob_stats_sort | awk '{print $1}'` ]; then
+          echo "Enter valid number, please."
+          continue
+        fi
+        the_new_dir=`tail -$((answer + 1)) ~/.cd_glob_stats_sort | head -1 | awk '{sub(/^[0-9 ]*/, ""); print $0}'`
       fi
 
-      the_new_dir=$valid_dir
       break
     done
   fi
@@ -60,6 +69,23 @@ cd_func ()
   the_new_dir=$(pwd)
 
   #
+  # Global stats
+  {
+    exist=0
+    while read line; do
+      READLINE_LINE=""
+      [ "$line" == "$the_new_dir" ] && exist=1
+    done < ~/.cd_glob_stats
+  } 2>/dev/null
+
+  if [ $exist -eq 0 ]; then
+    echo $the_new_dir >> ~/.cd_glob_stats
+    # Init: 0 line to 30 lines; Afterwards: replace the file with the last 15 lines, increase to 30, replace again...
+    start=$(($(wc -l ~/.cd_glob_stats | awk '{print $1}') - 30))
+    [ $start -gt 0 ] && sed -i "1,$((start + 15)) d" ~/.cd_glob_stats
+  fi
+
+  #
   # Trim down everything beyond 101th entry
   popd -n +100 2>/dev/null 1>/dev/null
 
@@ -82,7 +108,9 @@ alias cd=cd_func
 
 # Only do the binding in interactive shell.
 if [[ $BASH_VERSION > "2.05a" ]] && [ ! -z "$PS1" ]; then
-  # alt+q shows the menu
+  # alt+q shows the  local menu
   bind -x "\"\eq\":cd_func -- ;"
+  # alt+a shows the global menu
+  bind -x "\"\ea\":cd_func -? ;"
 fi
 
