@@ -54,12 +54,20 @@ cd_func_hlt ()
 # $1: The name of caller's variable which is to be set for the target dir path.
 # $2: The prompt string for UI.
 # $3: The file to be read for showing choices to user.
+# $4: The number of layers of this function call (starts from 0).
 cd_func_ui ()
 {
   local valid_dir dir ok line twiddle sl mode
-  local -i i max first
+  local -i range i max first calln
   local -a pool
 
+  calln=$(($4+1))
+  [[ $calln -eq 8 ]] && calln=1
+  if [[ "`tail -1 $3`" == "     0	<do nothing>" ]]; then
+    range=1
+  else
+    range=0
+  fi
   eval "dir=\$$1"
 
   i=1
@@ -85,7 +93,7 @@ cd_func_ui ()
     # Check the input for specific modes. Set/echo sl, set valid_dir.
     if [[ "$mode" == "jk" ]]; then
       case "$twiddle" in
-            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { tput ed; mode="sh"; sl="/"; echo -en "$sl"; };;
+            "/") tput ed; mode="sh"; sl="/"; echo -en "$sl";;
           [0-9]) tput ed; mode="nm"; sl="$twiddle"; echo -en "$sl";;
             "j") tput ed; let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
             "k") tput ed; let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
@@ -111,15 +119,25 @@ cd_func_ui ()
                    mode="jk"
                    continue
                  else
-                   grep -v "^     0	<do nothing>$\|^ 0  <do nothing>$" "$3" | grep -i "${sl:1}" > "$ff"
-                   if [[ "$dir" == "-?" ]]; then
+                   grep -v "^     0	<do nothing>$\|^ 0  <do nothing>$" "$3" > "$ff".tmp
+                   case "$calln" in
+                     1) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "${sl:1}" > "$ff";;
+                     2) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "${sl:1}" > "$ff";;
+                     3) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "${sl:1}" > "$ff";;
+                     4) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "" "${sl:1}" > "$ff";;
+                     5) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "" "" "${sl:1}" > "$ff";;
+                     6) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "" "" "" "${sl:1}" > "$ff";;
+                     7) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "" "" "" "" "${sl:1}" > "$ff";;
+                     8) /bin/grep -i "${sl:1}" "$ff".tmp | h -i "" "" "" "" "" "" "" "${sl:1}" > "$ff";;
+                   esac
+                   if [[ $range -eq 1 ]]; then
                      echo "     0	<do nothing>" >> "$ff"
                    else
                      echo " 0  <do nothing>" >> "$ff"
                    fi
                    cat "$ff"
                    eval "$1=\"${sl:1}\""
-                   cd_func_ui "$1" "`if [[ "$dir" == "--" ]]; then echo "Local "; else echo "Global"; fi` cd history: choose a number (empty == 0) or navigate with j/k keys:  " "$ff"
+                   cd_func_ui "$1" "`if [[ $range -eq 0 ]]; then echo "Local "; else echo "Global"; fi` cd history: choose a number (empty == 0) or navigate with j/k keys or search \"word\" with /word case-insensitively:  " "$ff" $calln
                    return 0
                  fi
                  ;;
@@ -131,7 +149,7 @@ cd_func_ui ()
     elif [[ "$mode" == "nm" ]]; then
       case "$twiddle" in
         $'\x7f') sl="${sl%?}"; echo -en "\010 \010";;
-            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { cd_func_cursor "$sl"; tput ed; mode="sh"; sl="/"; echo -en "$sl"; };;
+            "/") cd_func_cursor "$sl"; tput ed; mode="sh"; sl="/"; echo -en "$sl";;
           [0-9]) sl="$sl""$twiddle"; echo -en "$twiddle";;
             "j") cd_func_cursor "$sl"; tput ed; mode="jk"; let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
             "k") cd_func_cursor "$sl"; tput ed; mode="jk"; let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
@@ -149,13 +167,23 @@ cd_func_ui ()
                    continue
                  fi
                  [[ "$sl" -eq 0 ]] && { eval "$1=."; return 0; }
-                 if [[ "$dir" == "--" ]]; then
-                   valid_dir=`dirs +$sl 2>/dev/null`
-                   if [[ "$valid_dir" == "" ]]; then
-                     echo -e "${GOLD}Enter valid number, please.${NC}"
-                     cd_func_hlt "$2"
-                     sl=""
-                     continue
+                 if [[ $range -eq 0 ]]; then
+                   if [[ "$dir" == "--" ]]; then
+                     valid_dir=`dirs +$sl 2>/dev/null`
+                     if [[ "$valid_dir" == "" ]]; then
+                       echo -e "${GOLD}Enter valid number, please.${NC}"
+                       cd_func_hlt "$2"
+                       sl=""
+                       continue
+                     fi
+                   else
+                     if [[ "`awk -v var="$sl" '$1 == var {print "yes"}' "$3"`" != "yes" ]]; then
+                       echo -e "${GOLD}Enter valid number, please.${NC}"
+                       cd_func_hlt "$2"
+                       sl=""
+                       continue
+                     fi
+                     valid_dir=`/bin/egrep "^ ?$sl  " "$3" | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
                    fi
                  else
                    ok=""
@@ -215,7 +243,7 @@ cd_func ()
 
     ###echo
 
-    cd_func_ui the_new_dir "$locglb cd history: choose a number (empty == 0) or navigate with j/k keys or search \"word\" with /word case-insensitively:  " "$file"
+    cd_func_ui the_new_dir "$locglb cd history: choose a number (empty == 0) or navigate with j/k keys or search \"word\" with /word case-insensitively:  " "$file" 0
   fi
 
   [[ $the_new_dir == "." ]] && return 0
@@ -236,7 +264,7 @@ cd_func ()
 
   # If the target dir is not accessible, then use it as pattern to search history.
   if [[ ! -d $the_new_dir ]] || [[ ! -x $the_new_dir ]]; then
-    nl "$fg" 2>/dev/null | sort -nr | grep -i "$the_new_dir" > "$ff"
+    nl "$fg" 2>/dev/null | sort -nr | /bin/grep -i "$the_new_dir" | h -i "$the_new_dir" > "$ff"
     cnt=`wc -l "$ff" | awk '{print $1}'`
     if [[ cnt -eq 1 ]]; then
       the_new_dir=`cat "$ff" | awk '{gsub(/^[0-9\t ]*|\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
@@ -249,7 +277,7 @@ cd_func ()
       # 2. No access and 1 entry found in global cd history -- directly go there without showing any error.
       # 3. No access and multiple entries found in global cd history (the following) -- let user see colored error message and choose another one from the output list.
       echo -e ${GOLD}`pushd "$the_new_dir" 2>&1`${NC}
-      cd_func_ui the_new_dir "Global cd history: choose a number (empty == 0) or navigate with j/k keys:  " "$ff"
+      cd_func_ui the_new_dir "Global cd history: choose a number (empty == 0) or navigate with j/k keys or search \"word\" with /word case-insensitively:  " "$ff" 1
       [[ $the_new_dir == "." ]] && return 0
     fi
   fi
