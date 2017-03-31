@@ -1,17 +1,21 @@
 cd_func ()
 {
-  local x2 prompt the_new_dir valid_dir adir index answer line
-  local -i cnt start exist
+  local x2 prompt the_new_dir valid_dir index answer
+  local -i cnt
 
   the_new_dir=$1
   if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
-    if [ "$the_new_dir" == "--" ]; then
-      prompt="Where to go? Enter the number (empty == 0):  "
-      dirs -v | sort -nr
+    if [[ "$the_new_dir" == "--" ]]; then
+      prompt="Where to go (locally)? Enter the number (empty == 0):  "
+      # Replace the last line with " 0  <do nothing>" as it's PWD.
+      dirs -v | sort -nr | sed '$ s/.*/ 0  <do nothing>/'
     else
-      prompt="Where to go? Enter the number (empty == 0 and / to search):  "
-      sort ~/.cd_glob_stats 2>/dev/null | uniq | awk '{printf "%2d  %s\n", NR, $0} END {print " 0  <do nothing>"}' | sort -nr | tee ~/.cd_glob_stats_sort
+      prompt="Where to go (globally)? Enter the number (empty == 0) or /word to search \"word\" case-insensitively:  "
+      {
+        nl ~/.cd_glob_stats 2>/dev/null | sort -nr
+        echo "     0  <do nothing>"
+      } | tee ~/.cd_glob_stats_sort
     fi
 
     echo
@@ -21,29 +25,38 @@ cd_func ()
       read -r -e answer
       READLINE_LINE=""
 
-      [ "$answer" == "" ] && answer=0
+      [[ "$answer" == "" ]] && answer=0
 
-      [ "$answer" == "/" ] && [ "$the_new_dir" == "-?" ] && { less ~/.cd_glob_stats_sort; continue; }
+      [[ "${answer:0:1}" == "/" ]] && [[ "$the_new_dir" == "-?" ]] && {
+        if [[ "${answer:1}" == "" ]]; then
+          less ~/.cd_glob_stats_sort
+        else
+          grep -i "${answer:1}" ~/.cd_glob_stats_sort
+        fi
+        continue
+      }
 
-      if [ "${answer//[0-9]/}" != "" ]; then
+      if [[ "${answer//[0-9]/}" != "" ]]; then
         echo "Digit only, please."
         continue
       fi
 
-      if [ "$the_new_dir" == "--" ]; then
+      # Remove leading 0's from the number, if any.
+      answer=$((10#$answer))
+      [[ "$answer" -eq 0 ]] && return 0
+      if [[ "$the_new_dir" == "--" ]]; then
         valid_dir=`dirs +$answer 2>/dev/null`
-        if [ "$valid_dir" == "" ]; then
+        if [[ "$valid_dir" == "" ]]; then
           echo "Enter valid number, please."
           continue
         fi
         the_new_dir=$valid_dir
       else
-        [ "$answer" -eq 0 ] && return 0
-        if [ "$answer" -ge `wc -l ~/.cd_glob_stats_sort | awk '{print $1}'` ]; then
+        if [[ "$answer" -gt `wc -l ~/.cd_glob_stats | awk '{print $1}'` ]]; then
           echo "Enter valid number, please."
           continue
         fi
-        the_new_dir=`tail -$((answer + 1)) ~/.cd_glob_stats_sort | head -1 | awk '{sub(/^[0-9 ]*/, ""); print $0}'`
+        the_new_dir=`/bin/egrep "^ {4,5}$answer	" ~/.cd_glob_stats_sort | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
       fi
 
       break
@@ -57,9 +70,8 @@ cd_func ()
     # Extract dir N from dirs
     index=${the_new_dir:1}
     [[ -z $index ]] && index=1
-    adir=$(dirs +$index)
-    [[ -z $adir ]] && return 1
-    the_new_dir=$adir
+    the_new_dir=$(dirs +$index)
+    [[ -z $the_new_dir ]] && return 1
   fi
 
   #
@@ -74,19 +86,14 @@ cd_func ()
 
   #
   # Global stats
-  {
-    exist=0
-    while read line; do
-      READLINE_LINE=""
-      [ "$line" == "$the_new_dir" ] && exist=1
-    done < ~/.cd_glob_stats
-  } 2>/dev/null
-
-  if [ $exist -eq 0 ]; then
-    echo $the_new_dir >> ~/.cd_glob_stats
-    # Init: 0 line to 30 lines; Afterwards: replace the file with the last 15 lines, increase to 30, replace again...
-    start=$(($(wc -l ~/.cd_glob_stats | awk '{print $1}') - 30))
-    [ $start -gt 0 ] && sed -i "1,$((start + 15)) d" ~/.cd_glob_stats
+  if [[ -f ~/.cd_glob_stats ]]; then
+    # The newer the closer to the head. Up to 99 lines.
+    awk -v var="$the_new_dir" '$0 != var' ~/.cd_glob_stats > ~/.cd_glob_stat.tmp
+    mv ~/.cd_glob_stat.tmp ~/.cd_glob_stats
+    sed -i "1s?^?$the_new_dir\n?" ~/.cd_glob_stats
+    sed -i "100,$ d" ~/.cd_glob_stats
+  else
+    echo "$the_new_dir" > ~/.cd_glob_stats
   fi
 
   #
