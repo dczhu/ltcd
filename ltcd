@@ -1,52 +1,141 @@
+# $1: The name of caller's variable which is to be set for the target dir path.
+# $2: The prompt string for UI.
+# $3: The file to be read for showing choices to user.
 cd_func_ui ()
 {
-  local answer valid_dir dir ok
+  local valid_dir dir ok line twiddle sl
+  local -r fkp="$HOME/.cd/first-keypress"
+  local -i i max normal first
+  local -a pool
 
   eval "dir=\$$1"
+
+  i=1
+  while IFS= read line; do
+    pool[i]="$line"
+    i+=1
+  done < "$3"
+
+  max=$((i-1))
+  i=$max
+  normal=1
+
+  echo "$2"
+  first=1
   while :; do
-    echo -n "$2"
-    read -r -e answer
-    READLINE_LINE=""
-
-    [[ "$answer" == "" ]] && answer=0
-
-    [[ "${answer:0:1}" == "/" ]] && [[ "$dir" == "-?" ]] && {
-      if [[ "${answer:1}" == "" ]]; then
-        less ~/.cd_glob_stats_sort
+    if [[ $first -eq 0 ]]; then
+      read -rsn1 twiddle
+    else
+      # Append the dir entry to history so that UP key can show something. The 1st appending is just for not losing the last shell cmd in the history.
+      history -s `history 1 | awk '{gsub(/^[ ]*[0-9]*  /, ""); print $0}'`
+      history -s "${pool[i-1]}"
+      read -ren1 twiddle 2>"$fkp"
+      READLINE_LINE=""
+      sl=`cat "$fkp"`
+      history -d `history 1 | awk '{print $1}'`
+      first=0
+      # Enter detected for the 1st input char.
+      [[ "$sl" == "" ]] && [[ "$twiddle" == "" ]] && { eval "$1=."; return 0; }
+      if [[ "${sl:1:1}" != "" ]]; then
+        echo -en "${pool[i-1]}"
+        let i=i-1
+        normal=0
       else
-        grep -i "${answer:1}" ~/.cd_glob_stats_sort
+        echo -en "$sl"
       fi
-      continue
-    }
-
-    if [[ "${answer//[0-9]/}" != "" ]]; then
-      echo "Digit only, please."
       continue
     fi
 
-    # Remove leading 0's from the number, if any.
-    answer=$((10#$answer))
-    [[ "$answer" -eq 0 ]] && { eval "$1=."; return 0; }
-    if [[ "$dir" == "--" ]]; then
-      valid_dir=`dirs +$answer 2>/dev/null`
-      if [[ "$valid_dir" == "" ]]; then
-        echo "Enter valid number, please."
-        continue
+    if [[ "$twiddle" == $'\033' ]]; then
+      normal=0
+      read -rsn1 -t 0.1 twiddle
+      if [[ "$twiddle" == "[" ]]; then
+        read -rsn1 -t 0.1 twiddle
+        case "$twiddle" in
+          "A") let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; printf "\r%${COLUMNS}s" " "; echo -en "\r$sl";;
+          "B") let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; printf "\r%${COLUMNS}s" " "; echo -en "\r$sl";;
+        esac
+      fi
+      continue
+    elif [[ "$twiddle" == "" ]]; then
+      [[ "$sl" != "" ]] && echo
+      if [[ $normal -eq 0 ]]; then
+        # Coming from up/down selection.
+        if [[ "$sl" == "     0	<do nothing>" ]] || [[ "$sl" == " 0  <do nothing>" ]] || [[ "$sl" == "" ]]; then
+          valid_dir="."
+        else
+          valid_dir=`echo "$sl" | sed 's/^[\t 0-9]*//'`
+        fi
+      else
+        # Coming from text input.
+        normal=0
+
+        [[ "$sl" == "" ]] && sl=0
+
+        [[ "${sl:0:1}" == "/" ]] && [[ "$dir" == "-?" ]] && {
+          if [[ "${sl:1}" == "" ]]; then
+            less "$3"
+            echo "$2"
+            sl=""
+            continue
+          else
+            grep -v "^     0	<do nothing>$" "$3" | grep -i "${sl:1}" > "$fgf"
+            echo "     0	<do nothing>" >> "$fgf"
+            cat "$fgf"
+            eval "$1=\"${sl:1}\""
+            cd_func_ui "$1" "Found the above in recent global cd history. Enter the number (empty == 0) or use up/down keys to navigate:  " "$fgf"
+            return 0
+          fi
+        }
+
+        if [[ "${sl//[0-9]/}" != "" ]]; then
+          echo -e "Digit only, please.\n$2"
+          sl=""
+          continue
+        fi
+
+        # Remove leading 0's from the number, if any.
+        sl=$((10#$sl))
+        [[ "$sl" -eq 0 ]] && { eval "$1=."; return 0; }
+        if [[ "$dir" == "--" ]]; then
+          valid_dir=`dirs +$sl 2>/dev/null`
+          if [[ "$valid_dir" == "" ]]; then
+            echo -e "Enter valid number, please.\n$2"
+            sl=""
+            continue
+          fi
+        else
+          ok=""
+          if [[ "$dir" == "-?" ]]; then
+            [[ "$sl" -lt `wc -l "$3" | awk '{print $1}'` ]] && ok="yes"
+          else
+            ok=`awk -v var="$sl" '$1 == var {print "yes"}' "$3"`
+          fi
+          if [[ "$ok" != "yes" ]]; then
+            echo -e "Enter valid number, please.\n$2"
+            sl=""
+            continue
+          fi
+          valid_dir=`/bin/egrep "^ {4,5}$sl	" "$3" | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
+        fi
       fi
     else
-      ok=""
-      if [[ "$dir" == "-?" ]]; then
-        [[ "$answer" -le `wc -l ~/.cd_glob_stats | awk '{print $1}'` ]] && ok="yes"
+      [[ $normal -eq 0 ]] && { printf "\r%${COLUMNS}s\r" " "; sl=""; normal=1; }
+      if [[ "$twiddle" == $'\x7f' ]]; then
+        # Backspace handling
+        echo -en "\010 \010"
+        sl="${sl%?}"
       else
-        ok=`awk -v var="$answer" '$1 == var {print "yes"}' ~/.cd_glob_stats_fuzzy`
+        echo -en "$twiddle"
+        sl=$sl"$twiddle"
       fi
-      if [[ "$ok" != "yes" ]]; then
-        echo "Enter valid number, please."
-        continue
-      fi
-      valid_dir=`/bin/egrep "^ {4,5}$answer	" ~/.cd_glob_stats_sort | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
+      continue
     fi
 
+    # Remove possible color sequences.
+    valid_dir=`echo "$valid_dir" | awk '{gsub(/\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
+
+    # Pass back a string!!!
     eval "$1=\"$valid_dir\""
 
     return 0
@@ -55,27 +144,34 @@ cd_func_ui ()
 
 cd_func ()
 {
-  local x2 prompt the_new_dir index
+  local x2 prompt the_new_dir index file
+  local -r fg="$HOME/.cd/glob_stats"
+  local -r fgs="$HOME/.cd/glob_stats_sort"
+  local -r fgf="$HOME/.cd/glob_stats_fuzzy"
+  local -r fls="$HOME/.cd/local_stats_sort"
   local -i cnt
 
+  mkdir -p "$HOME/.cd"
   the_new_dir=$1
   if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
     if [[ "$the_new_dir" == "--" ]]; then
-      prompt="Where to go (locally)? Enter the number (empty == 0):  "
+      prompt="Where to go (locally)? Enter the number (empty == 0) or use up/down keys to navigate:  "
+      file="$fls"
       # Replace the last line with " 0  <do nothing>" as it's PWD.
-      dirs -v | sort -nr | sed '$ s/.*/ 0  <do nothing>/'
+      dirs -v | sort -nr | sed '$ s/.*/ 0  <do nothing>/' | tee "$file"
     else
-      prompt="Where to go (globally)? Enter the number (empty == 0) or /word to search \"word\" case-insensitively:  "
+      prompt="Where to go (globally)? Enter the number (empty == 0) or use up/down keys to navigate or /word to search \"word\" case-insensitively:  "
+      file="$fgs"
       {
-        nl ~/.cd_glob_stats 2>/dev/null | sort -nr
+        nl "$fg" 2>/dev/null | sort -nr
         echo "     0	<do nothing>"
-      } | tee ~/.cd_glob_stats_sort
+      } | tee "$file"
     fi
 
-    echo
+    ###echo
 
-    cd_func_ui the_new_dir "$prompt"
+    cd_func_ui the_new_dir "$prompt" "$file"
   fi
 
   [[ $the_new_dir == "." ]] && return 0
@@ -96,15 +192,15 @@ cd_func ()
 
   # If the target dir is not accessible, then use it as pattern to search history.
   if [[ ! -d $the_new_dir ]] || [[ ! -x $the_new_dir ]]; then
-    nl ~/.cd_glob_stats 2>/dev/null | sort -nr | grep -i "$the_new_dir" > ~/.cd_glob_stats_fuzzy
-    cnt=`wc -l ~/.cd_glob_stats_fuzzy | awk '{print $1}'`
+    nl "$fg" 2>/dev/null | sort -nr | grep -i "$the_new_dir" > "$fgf"
+    cnt=`wc -l "$fgf" | awk '{print $1}'`
     if [[ cnt -eq 1 ]]; then
-      the_new_dir=`cat ~/.cd_glob_stats_fuzzy | awk '{gsub(/^[0-9\t ]*|\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
+      the_new_dir=`cat "$fgf" | awk '{gsub(/^[0-9\t ]*|\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
     elif [[ cnt -gt 1 ]]; then
-      cat ~/.cd_glob_stats_fuzzy
-      echo "     0	<do nothing>"
-      echo
-      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the number (empty == 0):  "
+      echo "     0	<do nothing>" >> "$fgf"
+      cat "$fgf"
+      ###echo
+      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the number (empty == 0) or use up/down keys to navigate:  " "$fgf"
       [[ $the_new_dir == "." ]] && return 0
     fi
   fi
@@ -117,14 +213,14 @@ cd_func ()
 
   #
   # Global stats
-  if [[ -f ~/.cd_glob_stats ]]; then
+  if [[ -f "$fg" ]]; then
     # The newer the closer to the head. Up to 99 lines.
-    awk -v var="$the_new_dir" '$0 != var' ~/.cd_glob_stats > ~/.cd_glob_stat.tmp
-    mv ~/.cd_glob_stat.tmp ~/.cd_glob_stats
-    sed -i "1s?^?$the_new_dir\n?" ~/.cd_glob_stats
-    sed -i "100,$ d" ~/.cd_glob_stats
+    awk -v var="$the_new_dir" '$0 != var' "$fg" > "$fg".tmp
+    mv "$fg".tmp "$fg"
+    sed -i "1s?^?$the_new_dir\n?" "$fg"
+    sed -i "100,$ d" "$fg"
   else
-    echo "$the_new_dir" > ~/.cd_glob_stats
+    echo "$the_new_dir" > "$fg"
   fi
 
   #
