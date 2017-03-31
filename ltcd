@@ -1,25 +1,29 @@
 cd_func ()
 {
-  local x2 the_new_dir valid_dir adir index answer line
+  local x2 prompt the_new_dir valid_dir adir index answer line
   local -i cnt start exist
 
   the_new_dir=$1
   if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
     if [ "$the_new_dir" == "--" ]; then
+      prompt="Where to go? Enter the number (empty == 0):  "
       dirs -v | sort -nr
     else
+      prompt="Where to go? Enter the number (empty == 0 and / to search):  "
       sort ~/.cd_glob_stats 2>/dev/null | uniq | awk '{printf "%2d  %s\n", NR, $0} END {print " 0  <do nothing>"}' | sort -nr | tee ~/.cd_glob_stats_sort
     fi
 
     echo
 
     while :; do
-      echo -n "Where to go? Enter the number (empty == 0):  "
+      echo -n "$prompt"
       read -r -e answer
       READLINE_LINE=""
 
       [ "$answer" == "" ] && answer=0
+
+      [ "$answer" == "/" ] && [ "$the_new_dir" == "-?" ] && { less ~/.cd_glob_stats_sort; continue; }
 
       if [ "${answer//[0-9]/}" != "" ]; then
         echo "Digit only, please."
