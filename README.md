@@ -1,6 +1,8 @@
 # ltcd
 Less Typing Changing Directory (cd)
 
+![Alt Text](https://github.com/dczhu/ltcd/blob/master/res/cd.gif)
+
 Inspired by [acd_func.sh](http://linuxgazette.net/109/misc/marinov/acd_func.html), ltcd provides the following features to make life easier:
 
 - [x] Global dir listing (Alt+A), which shows recently visited dirs from all terminal tabs/windows.
