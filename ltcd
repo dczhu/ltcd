@@ -6,8 +6,9 @@ cd_func_hlt ()
       format = "%s%-"col"s%s"
       printf format, "\x1b[47m\x1b[K", $0, "\x1b[m\x1b[K\n"
     }
-  ' | sed -e "s/\(number\)/\x1b[1;4;34m\1\x1b[0m\x1b[47m/" \
-          -e "s/\(j\/k\)/\x1b[1;4;35m\1\x1b[0m\x1b[47m/"   \
+  ' | sed -e "s/\(Global\|Local \)/\x1b[1m\1\x1b[0m\x1b[47m/" \
+          -e "s/\(number\)/\x1b[1;4;34m\1\x1b[0m\x1b[47m/"    \
+          -e "s/\(j\/k\)/\x1b[1;4;35m\1\x1b[0m\x1b[47m/"      \
           -e "s/\(\/word\)/\x1b[1;4;38;5;100m\1\x1b[0m\x1b[47m/"
 
   return 0
@@ -81,7 +82,7 @@ cd_func_ui ()
                    fi
                    cat "$ff"
                    eval "$1=\"${sl:1}\""
-                   cd_func_ui "$1" "Found the above in recent `if [[ "$dir" == "--" ]]; then echo "local"; else echo "global"; fi` cd history. Enter the number (empty == 0) or use j/k keys to navigate:  " "$ff"
+                   cd_func_ui "$1" "`if [[ "$dir" == "--" ]]; then echo "Local "; else echo "Global"; fi` cd history: choose a number (empty == 0) or navigate with j/k keys:  " "$ff"
                    return 0
                  fi
                  ;;
@@ -162,12 +163,12 @@ cd_func ()
   if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
     if [[ "$the_new_dir" == "--" ]]; then
-      locglb="locally"
+      locglb="Local "
       file="$fls"
       # Replace the last line with " 0  <do nothing>" as it's PWD.
       dirs -v | sort -nr | sed '$ s/.*/ 0  <do nothing>/' | tee "$file"
     else
-      locglb="globally"
+      locglb="Global"
       file="$fgs"
       {
         nl "$fg" 2>/dev/null | sort -nr
@@ -177,7 +178,7 @@ cd_func ()
 
     ###echo
 
-    cd_func_ui the_new_dir "Where to go ($locglb)? Enter the number (empty == 0) or use j/k keys to navigate or /word to search \"word\" case-insensitively:  " "$file"
+    cd_func_ui the_new_dir "$locglb cd history: choose a number (empty == 0) or navigate with j/k keys or search \"word\" with /word case-insensitively:  " "$file"
   fi
 
   [[ $the_new_dir == "." ]] && return 0
@@ -206,7 +207,7 @@ cd_func ()
       echo "     0	<do nothing>" >> "$ff"
       cat "$ff"
       ###echo
-      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the number (empty == 0) or use j/k keys to navigate:  " "$ff"
+      cd_func_ui the_new_dir "Global cd history: choose a number (empty == 0) or navigate with j/k keys:  " "$ff"
       [[ $the_new_dir == "." ]] && return 0
     fi
   fi
