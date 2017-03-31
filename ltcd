@@ -1,3 +1,18 @@
+cd_func_hlt ()
+{
+  echo "$1" | awk -v width=$(tput cols) '
+    {
+      col = (int((length() - 1) / width) + 1) * width
+      format = "%s%-"col"s%s"
+      printf format, "\x1b[47m\x1b[K", $0, "\x1b[m\x1b[K\n"
+    }
+  ' | sed -e "s/\(number\)/\x1b[1;4;34m\1\x1b[0m\x1b[47m/" \
+          -e "s/\(j\/k\)/\x1b[1;4;35m\1\x1b[0m\x1b[47m/"   \
+          -e "s/\(\/word\)/\x1b[1;4;38;5;100m\1\x1b[0m\x1b[47m/"
+
+  return 0
+}
+
 # $1: The name of caller's variable which is to be set for the target dir path.
 # $2: The prompt string for UI.
 # $3: The file to be read for showing choices to user.
@@ -19,7 +34,7 @@ cd_func_ui ()
   i=$max
   mode="jk"
   first=1
-  echo -e "$2"
+  cd_func_hlt "$2"
   while :; do
     if [[ $first -eq 0 ]]; then
       IFS= read -rsn1 twiddle
@@ -53,7 +68,7 @@ cd_func_ui ()
              "") echo
                  if [[ "${sl:1}" == "" ]]; then
                    less "$3"
-                   echo -e "$2"
+                   cd_func_hlt "$2"
                    sl=""
                    mode="jk"
                    continue
@@ -66,7 +81,7 @@ cd_func_ui ()
                    fi
                    cat "$ff"
                    eval "$1=\"${sl:1}\""
-                   cd_func_ui "$1" "Found the above in recent `if [[ "$dir" == "--" ]]; then echo "local"; else echo "global"; fi` cd history. Enter the ${Blue}number${NC} (empty == 0) or use ${Purple}j/k${NC} keys to navigate:  " "$ff"
+                   cd_func_ui "$1" "Found the above in recent `if [[ "$dir" == "--" ]]; then echo "local"; else echo "global"; fi` cd history. Enter the number (empty == 0) or use j/k keys to navigate:  " "$ff"
                    return 0
                  fi
                  ;;
@@ -90,7 +105,8 @@ cd_func_ui ()
                  # Remove leading 0's from the number, if any.
                  sl=$((10#$sl))
                  if [[ "$sl" -lt 0 ]] || [[ "$sl" -gt 99 ]]; then
-                   echo -e "${GOLD}Enter valid number, please.${NC}\n$2"
+                   echo -e "${GOLD}Enter valid number, please.${NC}"
+                   cd_func_hlt "$2"
                    sl=""
                    continue
                  fi
@@ -98,7 +114,8 @@ cd_func_ui ()
                  if [[ "$dir" == "--" ]]; then
                    valid_dir=`dirs +$sl 2>/dev/null`
                    if [[ "$valid_dir" == "" ]]; then
-                     echo -e "${GOLD}Enter valid number, please.${NC}\n$2"
+                     echo -e "${GOLD}Enter valid number, please.${NC}"
+                     cd_func_hlt "$2"
                      sl=""
                      continue
                    fi
@@ -110,7 +127,8 @@ cd_func_ui ()
                      ok=`awk -v var="$sl" '$1 == var {print "yes"}' "$3"`
                    fi
                    if [[ "$ok" != "yes" ]]; then
-                     echo -e "${GOLD}Enter valid number, please.${NC}\n$2"
+                     echo -e "${GOLD}Enter valid number, please.${NC}"
+                     cd_func_hlt "$2"
                      sl=""
                      continue
                    fi
@@ -159,7 +177,7 @@ cd_func ()
 
     ###echo
 
-    cd_func_ui the_new_dir "Where to go ($locglb)? Enter the ${Blue}number${NC} (empty == 0) or use ${Purple}j/k${NC} keys to navigate or ${Olive}/word${NC} to search \"word\" case-insensitively:  " "$file"
+    cd_func_ui the_new_dir "Where to go ($locglb)? Enter the number (empty == 0) or use j/k keys to navigate or /word to search \"word\" case-insensitively:  " "$file"
   fi
 
   [[ $the_new_dir == "." ]] && return 0
@@ -188,7 +206,7 @@ cd_func ()
       echo "     0	<do nothing>" >> "$ff"
       cat "$ff"
       ###echo
-      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the ${Blue}number${NC} (empty == 0) or use ${Purple}j/k${NC} keys to navigate:  " "$ff"
+      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the number (empty == 0) or use j/k keys to navigate:  " "$ff"
       [[ $the_new_dir == "." ]] && return 0
     fi
   fi
