@@ -1,3 +1,40 @@
+cd_func_cursor ()
+{
+  local raw char currow
+  local -i sub
+
+  if [[ "${1//[0-9]/}" != "" ]]; then
+    raw=`echo "$1" | awk '{gsub(/^[0-9\t ]*|\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
+
+    char="${1:4:1}"
+
+    # Get the number of lines the string $1 covers (sub is 1 less than the number of lines).
+    if [[ "${char/[0-9 ]/}" != "" ]]; then
+      sub=$(((${#raw}+4)/`tput cols`))
+    else
+      sub=$(((${#raw}+8)/`tput cols`))
+    fi
+  else
+    # Called from 'nm' mode while $1 is a series of numbers.
+    sub=$((${#1}/`tput cols`))
+  fi
+
+  # If $1 is a one-line string, just set the cursor to the column 0 of the current row. Be faster.
+  [[ $sub -eq 0 ]] && { tput hpa 0; return 0; }
+
+  # Get the current row number.
+  echo -en "\E[6n"
+  read -sd R currow
+  currow=${currow#*[}
+  currow=${currow%;*}
+  let currow--
+
+  # Get the row number that the cursor should go back to. A two-line string will need to put the current cursor 1 row back, and a three-line string to put it 2 rows back.
+  tput cup $((currow-sub)) 0
+
+  return 0
+}
+
 cd_func_hlt ()
 {
   echo "$1" | awk -v width=$(tput cols) '
@@ -48,17 +85,17 @@ cd_func_ui ()
     # Check the input for specific modes. Set/echo sl, set valid_dir.
     if [[ "$mode" == "jk" ]]; then
       case "$twiddle" in
-            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { mode="sh"; sl="/"; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl"; };;
-          [0-9]) mode="nm"; sl="$twiddle"; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl";;
-            "j") let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl";;
-            "k") let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl";;
+            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { tput ed; mode="sh"; sl="/"; echo -en "$sl"; };;
+          [0-9]) tput ed; mode="nm"; sl="$twiddle"; echo -en "$sl";;
+            "j") tput ed; let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
+            "k") tput ed; let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
              "") if [[ "$sl" == "     0	<do nothing>" ]] || [[ "$sl" == " 0  <do nothing>" ]] || [[ "$sl" == "" ]]; then
                    valid_dir="."
                  else
                    valid_dir=`echo "$sl" | sed 's/^[\t 0-9]*//'`
                  fi
                  break;;
-        $'\x7f') sl=""; printf "\r%${COLUMNS}s\r" " ";;
+        $'\x7f') sl=""; tput ed;;
       esac
       continue
     elif [[ "$mode" == "sh" ]]; then
@@ -87,17 +124,17 @@ cd_func_ui ()
                  fi
                  ;;
     # All printable chars.
-    [[:print:]]) sl=$sl"$twiddle"; echo -en "$twiddle";;
+    [[:print:]]) sl="$sl""$twiddle"; echo -en "$twiddle";;
               *) read -rsn5 -t 0.1 twiddle;;
       esac
       continue
     elif [[ "$mode" == "nm" ]]; then
       case "$twiddle" in
         $'\x7f') sl="${sl%?}"; echo -en "\010 \010";;
-            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { mode="sh"; sl="/"; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl"; };;
-          [0-9]) sl=$sl"$twiddle"; echo -en "$twiddle";;
-            "j") mode="jk"; let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl";;
-            "k") mode="jk"; let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; printf "\r%${COLUMNS}s\r" " "; echo -en "$sl";;
+            "/") [[ "$dir" == "--" ]] || [[ "$dir" == "-?" ]] && { cd_func_cursor "$sl"; tput ed; mode="sh"; sl="/"; echo -en "$sl"; };;
+          [0-9]) sl="$sl""$twiddle"; echo -en "$twiddle";;
+            "j") cd_func_cursor "$sl"; tput ed; mode="jk"; let i=i+1; [ $i -gt $max ] && i=1; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
+            "k") cd_func_cursor "$sl"; tput ed; mode="jk"; let i=i-1; [ $i -eq 0 ] && i=$max; sl=${pool[i]}; echo -en "$sl"; cd_func_cursor "$sl";;
              "") if [[ "$sl" == "" ]]; then
                    sl=0
                  else
