@@ -10,13 +10,13 @@ cd_func_cursor ()
 
     # Get the number of lines the string $1 covers (sub is 1 less than the number of lines).
     if [[ "${char/[0-9 ]/}" != "" ]]; then
-      sub=$(((${#raw}+4)/`tput cols`))
+      sub=$(((${#raw}+4)/COLUMNS))
     else
-      sub=$(((${#raw}+8)/`tput cols`))
+      sub=$(((${#raw}+8)/COLUMNS))
     fi
   else
     # Called from 'nm' mode while $1 is a series of numbers.
-    sub=$((${#1}/`tput cols`))
+    sub=$((${#1}/COLUMNS))
   fi
 
   # If $1 is a one-line string, just set the cursor to the column 0 of the current row. Be faster.
@@ -37,7 +37,7 @@ cd_func_cursor ()
 
 cd_func_hlt ()
 {
-  echo "$1" | awk -v width=$(tput cols) '
+  echo "$1" | awk -v width=$COLUMNS '
     {
       col = (int((length() - 1) / width) + 1) * width
       format = "%s%-"col"s%s"
