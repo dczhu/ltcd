@@ -1,6 +1,61 @@
+cd_func_ui ()
+{
+  local answer valid_dir dir ok
+
+  eval "dir=\$$1"
+  while :; do
+    echo -n "$2"
+    read -r -e answer
+    READLINE_LINE=""
+
+    [[ "$answer" == "" ]] && answer=0
+
+    [[ "${answer:0:1}" == "/" ]] && [[ "$dir" == "-?" ]] && {
+      if [[ "${answer:1}" == "" ]]; then
+        less ~/.cd_glob_stats_sort
+      else
+        grep -i "${answer:1}" ~/.cd_glob_stats_sort
+      fi
+      continue
+    }
+
+    if [[ "${answer//[0-9]/}" != "" ]]; then
+      echo "Digit only, please."
+      continue
+    fi
+
+    # Remove leading 0's from the number, if any.
+    answer=$((10#$answer))
+    [[ "$answer" -eq 0 ]] && { eval "$1=."; return 0; }
+    if [[ "$dir" == "--" ]]; then
+      valid_dir=`dirs +$answer 2>/dev/null`
+      if [[ "$valid_dir" == "" ]]; then
+        echo "Enter valid number, please."
+        continue
+      fi
+    else
+      ok=""
+      if [[ "$dir" == "-?" ]]; then
+        [[ "$answer" -le `wc -l ~/.cd_glob_stats | awk '{print $1}'` ]] && ok="yes"
+      else
+        ok=`awk -v var="$answer" '$1 == var {print "yes"}' ~/.cd_glob_stats_fuzzy`
+      fi
+      if [[ "$ok" != "yes" ]]; then
+        echo "Enter valid number, please."
+        continue
+      fi
+      valid_dir=`/bin/egrep "^ {4,5}$answer	" ~/.cd_glob_stats_sort | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
+    fi
+
+    eval "$1=\"$valid_dir\""
+
+    return 0
+  done
+}
+
 cd_func ()
 {
-  local x2 prompt the_new_dir valid_dir index answer
+  local x2 prompt the_new_dir index
   local -i cnt
 
   the_new_dir=$1
@@ -14,55 +69,16 @@ cd_func ()
       prompt="Where to go (globally)? Enter the number (empty == 0) or /word to search \"word\" case-insensitively:  "
       {
         nl ~/.cd_glob_stats 2>/dev/null | sort -nr
-        echo "     0  <do nothing>"
+        echo "     0	<do nothing>"
       } | tee ~/.cd_glob_stats_sort
     fi
 
     echo
 
-    while :; do
-      echo -n "$prompt"
-      read -r -e answer
-      READLINE_LINE=""
-
-      [[ "$answer" == "" ]] && answer=0
-
-      [[ "${answer:0:1}" == "/" ]] && [[ "$the_new_dir" == "-?" ]] && {
-        if [[ "${answer:1}" == "" ]]; then
-          less ~/.cd_glob_stats_sort
-        else
-          grep -i "${answer:1}" ~/.cd_glob_stats_sort
-        fi
-        continue
-      }
-
-      if [[ "${answer//[0-9]/}" != "" ]]; then
-        echo "Digit only, please."
-        continue
-      fi
-
-      # Remove leading 0's from the number, if any.
-      answer=$((10#$answer))
-      [[ "$answer" -eq 0 ]] && return 0
-      if [[ "$the_new_dir" == "--" ]]; then
-        valid_dir=`dirs +$answer 2>/dev/null`
-        if [[ "$valid_dir" == "" ]]; then
-          echo "Enter valid number, please."
-          continue
-        fi
-        the_new_dir=$valid_dir
-      else
-        if [[ "$answer" -gt `wc -l ~/.cd_glob_stats | awk '{print $1}'` ]]; then
-          echo "Enter valid number, please."
-          continue
-        fi
-        the_new_dir=`/bin/egrep "^ {4,5}$answer	" ~/.cd_glob_stats_sort | awk '{gsub(/^[0-9\t ]*/, ""); print $0}'`
-      fi
-
-      break
-    done
+    cd_func_ui the_new_dir "$prompt"
   fi
 
+  [[ $the_new_dir == "." ]] && return 0
   [[ -z $the_new_dir ]] && the_new_dir=$HOME
 
   if [[ ${the_new_dir:0:1} == '-' ]]; then
@@ -77,6 +93,21 @@ cd_func ()
   #
   # '~' has to be substituted by ${HOME}
   [[ ${the_new_dir:0:1} == '~' ]] && the_new_dir="${HOME}${the_new_dir:1}"
+
+  # If the target dir is not accessible, then use it as pattern to search history.
+  if [[ ! -d $the_new_dir ]] || [[ ! -x $the_new_dir ]]; then
+    nl ~/.cd_glob_stats 2>/dev/null | sort -nr | grep -i "$the_new_dir" > ~/.cd_glob_stats_fuzzy
+    cnt=`wc -l ~/.cd_glob_stats_fuzzy | awk '{print $1}'`
+    if [[ cnt -eq 1 ]]; then
+      the_new_dir=`cat ~/.cd_glob_stats_fuzzy | awk '{gsub(/^[0-9\t ]*|\x1b\[[0-9;]*m|\x1b\[K/, ""); print $0}'`
+    elif [[ cnt -gt 1 ]]; then
+      cat ~/.cd_glob_stats_fuzzy
+      echo "     0	<do nothing>"
+      echo
+      cd_func_ui the_new_dir "Found the above in recent global cd history. Enter the number (empty == 0):  "
+      [[ $the_new_dir == "." ]] && return 0
+    fi
+  fi
 
   #
   # Now change to the new dir and add to the top of the stack
