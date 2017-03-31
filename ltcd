@@ -7,10 +7,11 @@ cd_func ()
   if [[ $the_new_dir == "--" ]] || [[ $the_new_dir == "-?" ]]; then
     #dirs | awk '{for (i = NF; i > 0; i--) {n = i - 1; if (n < 10) sn = " "n; else sn = n; print sn"  "$i}}'
     if [[ "$the_new_dir" == "--" ]]; then
-      prompt="Where to go? Enter the number (empty == 0):  "
-      dirs -v | sort -nr
+      prompt="Where to go (locally)? Enter the number (empty == 0):  "
+      # Replace the last line with " 0  <do nothing>" as it's PWD.
+      dirs -v | sort -nr | sed '$ s/.*/ 0  <do nothing>/'
     else
-      prompt="Where to go? Enter the number (empty == 0 and / to search):  "
+      prompt="Where to go (globally)? Enter the number (empty == 0) or /word to search \"word\" case-insensitively:  "
       sort -r ~/.cd_glob_stats 2>/dev/null |
       {
         while read line; do
@@ -52,13 +53,23 @@ cd_func ()
 
       [[ "$answer" == "" ]] && answer=0
 
-      [[ "$answer" == "/" ]] && [[ "$the_new_dir" == "-?" ]] && { lessc ~/.cd_glob_stats_sort; continue; }
+      [[ "${answer:0:1}" == "/" ]] && [[ "$the_new_dir" == "-?" ]] && {
+        if [[ "${answer:1}" == "" ]]; then
+          awk '{gsub(/\x1b\[[0-9]*m|\x1b\[K/, ""); print $0}' ~/.cd_glob_stats_sort | less
+        else
+          awk '{gsub(/\x1b\[[0-9]*m|\x1b\[K/, ""); print $0}' ~/.cd_glob_stats_sort | grep -i "${answer:1}"
+        fi
+        continue
+      }
 
       if [[ "${answer//[0-9]/}" != "" ]]; then
         echo "Digit only, please."
         continue
       fi
 
+      # Remove leading 0's from the number, if any.
+      answer=$((10#$answer))
+      [[ "$answer" -eq 0 ]] && return 0
       if [[ "$the_new_dir" == "--" ]]; then
         valid_dir=`dirs +$answer 2>/dev/null`
         if [[ "$valid_dir" == "" ]]; then
@@ -67,7 +78,6 @@ cd_func ()
         fi
         the_new_dir=$valid_dir
       else
-        [[ "$answer" -eq 0 ]] && return 0
         if [[ "$answer" -gt `wc -l ~/.cd_glob_stats | awk '{print $1}'` ]]; then
           echo "Enter valid number, please."
           continue
