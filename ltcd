@@ -207,6 +207,11 @@ cd_func ()
       echo "     0	<do nothing>" >> "$ff"
       cat "$ff"
       ###echo
+      # There are 3 scenarios of dir access exception:
+      # 1. No access and nothing found in global cd history -- show the error message without color (the outside pushd does it).
+      # 2. No access and 1 entry found in global cd history -- directly go there without showing any error.
+      # 3. No access and multiple entries found in global cd history (the following) -- let user see colored error message and choose another one from the output list.
+      echo -e ${GOLD}`pushd "$the_new_dir" 2>&1`${NC}
       cd_func_ui the_new_dir "Global cd history: choose a number (empty == 0) or navigate with j/k keys:  " "$ff"
       [[ $the_new_dir == "." ]] && return 0
     fi
