@@ -12,8 +12,8 @@ Inspired by [acd_func.sh](http://linuxgazette.net/109/misc/marinov/acd_func.html
 - [x] Global free jumping (e.g. ```cd dir``` or ```cd ar``` to go to /path/to/foo/bar/directory/).
 
 ## Installation
-1. The scripts (ltcd and cd_utils) are used by sourcing them in ~/.bashrc, and the commands cd/cdrm/cdedit will be ready to use.
-2. ltcd uses [cxpgrep](https://github.com/dczhu/cxpgrep) which is an exteded grep command. So cxpgrep needs to be sourced as well.
+1. The scripts (ltcd and cd_utils) are used by sourcing them in ~/.bashrc, and the commands ```cd```/```cdrm```/```cdedit``` will be ready to use.
+2. ltcd uses [```cxpgrep```](https://github.com/dczhu/cxpgrep), which is an exteded grep command. So ```cxpgrep``` needs to be sourced as well.
 
 ## How To Use
 * Alt+A or ```cd -?``` brings up global dir list.
