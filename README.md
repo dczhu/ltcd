@@ -13,9 +13,9 @@ Inspired by [acd_func.sh](http://linuxgazette.net/109/misc/marinov/acd_func.html
 
 ## Installation
 In ~/.bashrc:
-1. source [```h```](https://github.com/dczhu/mch/blob/master/h), which is a multi-color pattern highlighter.
-2. source [```cxpgrep```](https://github.com/dczhu/cxpgrep/blob/master/cxpgrep), which is an exteded grep command that uses ```h```.
-3. source [ltcd](https://github.com/dczhu/ltcd/blob/master/ltcd) and [cd_utils](https://github.com/dczhu/ltcd/blob/master/cd_utils), and the commands ```cd```/```cdrm```/```cdedit``` will be ready to use. The script ltcd uses ```cxpgrep```.
+1. source the script [h](https://github.com/dczhu/mch/blob/master/h), which is a multi-color pattern highlighter.
+2. source the script [cxpgrep](https://github.com/dczhu/cxpgrep/blob/master/cxpgrep), which is an exteded grep command that uses the command ```h```.
+3. source the scripts [ltcd](https://github.com/dczhu/ltcd/blob/master/ltcd) and [cd_utils](https://github.com/dczhu/ltcd/blob/master/cd_utils), and the commands ```cd```/```cdrm```/```cdedit``` will be ready for use. The script ltcd uses the command ```cxpgrep```.
 
 ## Usage
 * Alt+A or ```cd -?``` brings up global dir list.
