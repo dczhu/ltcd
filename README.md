@@ -29,6 +29,10 @@ In ~/.bashrc:
 ## Note
 The files created by ltcd are all at ~/.cd/ for cleanness and debugging purposes.
 
+## Releases
+* 1.0
+  - [x] First working code
+
 ## Meta
 Deng-Cheng Zhu (dengcheng _DOT_ zhu _AT_ gmail _DOT_ com)
 
