@@ -35,6 +35,10 @@ The files created by ltcd are all at ~/.cd/ for cleanness and debugging purposes
 ## Releases
 * 1.0
   - [x] First working code
+* 1.1
+  - [x] Function namespace cleanup
+  - [x] Merge cd_utils to ltcd
+  - [x] More info added to README
 
 ## License
 This software (ltcd) is distributed under the [MIT license](https://github.com/dczhu/ltcd/blob/master/LICENSE).
