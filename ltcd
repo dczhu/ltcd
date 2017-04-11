@@ -1,3 +1,26 @@
+# No args
+cdrm ()
+{
+	local -r CDF="$HOME/.cd/stats_glob"
+	local i
+
+	while read i; do
+		[ -d "$i" ] && [ -x "$i" ] && { echo "$i"; continue; }
+		echo  "Removing \"$i\"" > /dev/stderr
+	done < $CDF > $CDF.tmp
+
+	mv $CDF.tmp $CDF
+}
+
+# No args
+cdedit ()
+{
+	local -r CDF="$HOME/.cd/stats_glob"
+
+	vim $CDF
+	/bin/rm -f $CDF~
+}
+
 cd_func_cursor ()
 {
   local raw char currow
