@@ -1,3 +1,7 @@
+# Less Typing Changing Directory - 'cd' efficiently
+# Author: Deng-Cheng Zhu <dengcheng(DOT)zhu(AT)gmail(DOT)com>
+# View demo, readme and license info at https://github.com/dczhu/ltcd
+
 # No args
 cdrm ()
 {
