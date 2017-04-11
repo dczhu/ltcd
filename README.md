@@ -22,6 +22,9 @@ In ~/.bashrc:
 * Alt+Q or `cd --` brings up local dir list.
 * `cd $word` for free jumping - 'word' is any part of the **FULL** path of the dir to go.
 * If there is a list, follow the prompt to choose a path to go.
+  - [x] Use the keys j/k to navigate down/up the entries - A single backspace will remove the whole line - Be fast!
+  - [x] Type a number to select a specific entry (0 or empty means staying put).
+  - [x] Start a search by typing / and then the word.
 * This code is intended to be compatible with the original cd command - e.g. `cd -` brings you back to the previous dir.
 * Run `cdrm` to remove invalid entries in global bookkeeping. Invalid entries are removed/renamed/inaccessible dirs.
 * Run `cdedit` in case you want to edit the global bookkeeping. For example, if you feel some dirs with "tmp" in the path name are not useful to stay in the record, you can manually remove them with this command.
