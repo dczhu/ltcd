@@ -20,7 +20,7 @@ Inspired by [acd_func.sh](http://linuxgazette.net/109/misc/marinov/acd_func.html
 In ~/.bashrc:
 1. source the script [h](https://github.com/dczhu/mch/blob/master/h), which is a multi-color pattern highlighter.
 2. source the script [cxpgrep](https://github.com/dczhu/cxpgrep/blob/master/cxpgrep), which is an exteded grep command that uses the command `h`.
-3. source the script [ltcd](https://github.com/dczhu/ltcd/blob/master/ltcd), and the commands `cd`/`cdrm`/`cdedit` will be ready for use. The script ltcd uses the command `cxpgrep`.
+3. source the script [ltcd](https://github.com/dczhu/ltcd/blob/master/ltcd), and the commands `cd`/`cdrm`/`cdedit` will be ready for use. The command `cd` is an alias of `cd_func`. The script ltcd uses the command `cxpgrep`.
 
 ## Usage
 * Alt+A or `cd -?` brings up global dir list.
