@@ -12,6 +12,11 @@ Inspired by [acd_func.sh](http://linuxgazette.net/109/misc/marinov/acd_func.html
 - [x] Global free jumping (e.g. `cd dir` or `cd ar` to go to /path/to/foo/bar/directory/).
 
 ## Installation
+**Doing the following should NOT spoil your existing environment - You will have:**
+  * More commands added in the form of Bash function.
+  * A directory .cd created under your home directory.
+  * Alt+A and Alt+Q registered for shortcuts to global dir listing and local dir listing, respectively. These 2 keybindings are **optional**. So you could delete them at the bottom of the script ltcd. Or, if you have keybinding conflicts, you could easily change the mappings at the bottom as well.
+
 In ~/.bashrc:
 1. source the script [h](https://github.com/dczhu/mch/blob/master/h), which is a multi-color pattern highlighter.
 2. source the script [cxpgrep](https://github.com/dczhu/cxpgrep/blob/master/cxpgrep), which is an exteded grep command that uses the command `h`.
