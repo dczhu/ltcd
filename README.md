@@ -22,7 +22,7 @@ In ~/.bashrc:
 * Alt+Q or `cd --` brings up local dir list.
 * `cd $word` for free jumping - 'word' is any part of the **FULL** path of the dir to go.
 * If there is a list, follow the prompt to choose a path to go.
-  - [x] Use the keys j/k to navigate down/up the entries - A single backspace will remove the whole line - Be fast!
+  - [x] Use the keys j/k to navigate down/up the entries - Typing a single backspace or / or a number will clear the whole line in the user input area - Be fast!
   - [x] Type a number to select a specific entry (0 or empty means staying put).
   - [x] Start a search by typing / and then the word.
 * This code is intended to be compatible with the original cd command - e.g. `cd -` brings you back to the previous dir.
