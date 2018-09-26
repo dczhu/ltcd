@@ -240,6 +240,8 @@ cd_func ()
   }
 
   local x2 locglb the_new_dir index file
+  local -r GOLD="\e[1;38;5;172m"
+  local -r NC="\e[0m"
   local -r fg="$HOME/.cd/stats_glob"
   local -r fgs="$HOME/.cd/stats_glob_sort"
   local -r ff="$HOME/.cd/stats_fuzzy"
